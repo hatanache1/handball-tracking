@@ -1,0 +1,152 @@
+/* Colors live here only; result colors are the same everywhere in the app. */
+:root {
+  --navy: #14213d;
+  --navy-light: #1f3157;
+  --surface: #e9ecf2; /* light areas: pitch and goal */
+  --text: #f4f5f7;
+  --accent: #fca311; /* rebound and open shots */
+  --result-goal: #d62828;
+  --result-saved: #2a9d4a;
+  --result-grey: #8d99ae; /* post and miss */
+  --warn: #9b2fae; /* "Spiel beenden": must not look like a goal (red) or a save (green) */
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  font-size: 20px;
+  background: var(--navy);
+  color: var(--text);
+}
+main { flex: 1; padding: 16px; overflow: auto; }
+h1 { margin: 0 0 16px; }
+h2 { margin: 24px 0 8px; }
+a { color: var(--accent); }
+
+/* 64px height: comfortable touch target on the Surface */
+button, input, select {
+  min-height: 64px;
+  font: inherit;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius);
+}
+button { background: var(--navy-light); color: var(--text); font-weight: 600; }
+button:disabled { opacity: 0.4; }
+/* --dot = the color of a shot result; toast, pins and list dots all read it */
+[data-result="tor"] { --dot: var(--result-goal); }
+[data-result="gehalten"] { --dot: var(--result-saved); }
+[data-result="pfosten"], [data-result="vorbei"] { --dot: var(--result-grey); }
+.pin { fill: var(--dot, var(--accent)); }
+input, select { background: var(--text); color: var(--navy); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--accent); color: var(--navy); }
+
+.row { display: flex; gap: 8px; margin-bottom: 8px; }
+.row input { flex: 1; }
+.row button.big { flex: 1; }
+.error { color: #ff8a8a; }
+
+/* Start and setup screens: one centered column */
+.screen { max-width: 640px; margin: 0 auto; }
+.screen label { display: block; margin-bottom: 12px; }
+.screen select { display: block; width: 100%; margin-top: 4px; }
+.screen .row { margin: 12px 0; }
+.start-button { width: 100%; min-height: 96px; font-size: 32px; background: var(--accent); color: var(--navy); margin-top: 12px; }
+.links { display: flex; gap: 24px; justify-content: center; margin-top: 32px; font-size: 16px; }
+.back { display: inline-block; margin-bottom: 16px; }
+.steps { margin: 0 0 16px; opacity: 0.7; }
+
+/* Live view: top bar, then pitch and goal as two full-size screens in one stage */
+.liveview { display: flex; flex-direction: column; height: 100%; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.topbar:empty { display: none; }
+.score { display: flex; align-items: center; gap: 8px; font-size: 28px; white-space: nowrap; }
+.score b { display: inline-block; min-width: 1.2em; text-align: center; font-size: 36px; }
+.score button { min-width: 72px; background: var(--navy-light); border: 2px solid var(--text); }
+/* Game clock: tap = start/stop, drag on minutes or seconds = adjust; touch-action none so the drag does not scroll */
+.clock { display: flex; align-items: center; min-height: 64px; padding: 0 12px; border-radius: var(--radius); background: var(--navy-light); font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer; touch-action: none; user-select: none; }
+.clock small { font-size: 22px; opacity: 0.95; }
+.clock [data-unit] { display: inline-block; min-width: 56px; padding: 14px 0; text-align: center; }
+.clock.stopped { color: var(--accent); box-shadow: inset 0 0 0 3px var(--accent); animation: clock-pulse 1s ease-in-out infinite alternate; }
+@keyframes clock-pulse { to { box-shadow: inset 0 0 0 3px transparent; } } /* only the frame pulses, the digits stay readable */
+@media (prefers-reduced-motion: reduce) { .clock.stopped { animation: none; } }
+.stepper { display: flex; gap: 4px; }
+.stepper span { padding: 8px 12px; border-radius: var(--radius); opacity: 0.7; }
+.stepper [data-state="now"] { background: var(--accent); color: var(--navy); opacity: 1; font-weight: 600; }
+.stepper [data-state="done"] { opacity: 0.8; }
+/* The tick is always there but invisible, so the bar never changes width */
+.stepper span::after { content: " ✓"; visibility: hidden; }
+.stepper [data-state="done"]::after { visibility: visible; }
+.stage { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: var(--radius); background: var(--surface); color: var(--navy); }
+.pane { position: absolute; inset: 0; transition: transform 300ms ease; }
+.pane svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; } /* none: no scroll or zoom while a finger holds */
+.stage[data-view="pitch"] .pane-goal { transform: translateX(100%); }
+.stage[data-view="goal"] .pane-pitch { transform: translateX(-100%); }
+/* Detail panel slides in over the right side of the pitch once a shot has a result */
+.detail-panel { position: absolute; top: 0; right: 0; bottom: 0; z-index: 2; width: min(420px, 50%); padding: 12px; overflow-y: auto; background: var(--navy); color: var(--text); transition: transform 300ms ease; }
+.stage[data-panel="closed"] .detail-panel { transform: translateX(100%); }
+/* Previous shot after a rebound, top left; open (no result) = orange */
+.prev-card, .badge, .toast { position: absolute; z-index: 1; pointer-events: none; border-radius: var(--radius); background: var(--navy); color: var(--text); padding: 8px 16px; }
+.stage [hidden] { display: none; }
+.prev-card { top: 12px; left: 12px; }
+.prev-card.open { color: var(--accent); border: 2px solid var(--accent); }
+.badge { top: 12px; right: 12px; background: var(--accent); color: var(--navy); font-weight: 600; }
+.toast { bottom: 16px; left: 50%; transform: translateX(-50%); font-weight: 600; opacity: 0; transition: opacity 300ms; }
+.toast::before { content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 50%; background: var(--dot, var(--accent)); }
+/* Errors lie over the stage like the toast, so the pitch is never rescaled; above the drawer so "Spiel beenden" errors show */
+.stage .overlay { position: absolute; bottom: 72px; left: 50%; z-index: 5; margin: 0; padding: 8px 16px; transform: translateX(-50%); border-radius: var(--radius); background: var(--navy); pointer-events: none; }
+.overlay:empty { display: none; }
+/* Gesture hints, bottom left of a screen */
+.hint { position: absolute; bottom: 12px; left: 16px; margin: 0; font-size: 16px; opacity: 0.6; pointer-events: none; }
+.drawer .note { margin: 0 0 8px; font-size: 16px; opacity: 0.7; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pane { transition: opacity 300ms; }
+  .stage[data-view="pitch"] .pane-goal, .stage[data-view="goal"] .pane-pitch { transform: none; opacity: 0; }
+  .detail-panel { transition: opacity 300ms; }
+  .stage[data-panel="closed"] .detail-panel { transform: none; opacity: 0; }
+}
+
+/* Buttons around the finger (close-range question, long-press menu); left/top are set in JS */
+.radial { position: absolute; width: 140px; transform: translate(-50%, -50%); padding: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
+
+/* Progress ring around the finger while holding; HOLD_MS comes from hold.js as --hold-ms */
+.hold-ring { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none; z-index: 10; }
+.hold-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.hold-ring circle { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: hold-fill var(--hold-ms) linear forwards; }
+@keyframes hold-fill { to { stroke-dashoffset: 0; } }
+
+/* Optional inputs of the live view: 5 digit buttons per row, chips wrap */
+.numpad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+
+/* Side drawer inside the stage: backdrop closes it; swipe a row left to reveal "Löschen" */
+.sidebar[data-open="false"] .drawer-backdrop { display: none; }
+.drawer-backdrop { position: absolute; inset: 0; z-index: 3; background: rgba(0, 0, 0, 0.5); }
+.drawer { position: absolute; top: 0; bottom: 0; left: 0; z-index: 4; display: flex; flex-direction: column; width: min(480px, 70%); padding: 12px; overflow-y: auto; background: var(--navy); color: var(--text); transition: transform 300ms ease; }
+.sidebar[data-open="false"] .drawer { transform: translateX(-100%); }
+.drawer h2, .drawer h3 { margin: 8px 0; }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; }
+.keepers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.drawer [hidden] { display: none; }
+.event-list { flex: 1; min-height: 120px; margin: 0 0 8px; padding: 0; overflow-y: auto; list-style: none; }
+.event-list li { position: relative; margin-bottom: 8px; overflow: hidden; border-radius: var(--radius); }
+.event-list .item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; touch-action: pan-y; transition: transform 200ms ease; }
+.dot { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--dot, transparent); border: 2px solid var(--dot, currentColor); }
+.event-list .item.open { border: 3px solid var(--accent); color: var(--accent); }
+.event-list .del { position: absolute; top: 0; right: 0; bottom: 0; width: 120px; background: var(--result-goal); }
+.event-list li.swiped .item { transform: translateX(-120px); }
+.end-button { background: var(--warn); }
+/* Shown while a saved shot from the list is open; left side, because the detail panel sits on the right */
+.edit-badge { position: absolute; top: 12px; left: 12px; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 0 0 0 16px; border-radius: var(--radius); background: var(--accent); color: var(--navy); font-weight: 600; }
+.edit-badge button { background: transparent; color: var(--navy); }
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .event-list .item { transition: opacity 300ms; }
+  .sidebar[data-open="false"] .drawer { transform: none; opacity: 0; }
+}
