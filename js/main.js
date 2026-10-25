@@ -1,6 +1,8 @@
 import { renderSettings } from "./views/settings.js";
 import { renderStart } from "./views/start.js";
 import { renderLive } from "./views/live.js";
+import { renderGameList, renderGame } from "./views/game.js";
+import { renderSeason } from "./views/season.js";
 import { loadDraft } from "./storage.js";
 
 function render() {
@@ -9,7 +11,9 @@ function render() {
   view.onclick = view.onchange = null; // the views set handlers on this element
   if (key === "einstellungen") renderSettings(view);
   else if (key === "spiel") renderLive(view);
-  else if (key === "auswertung") view.innerHTML = `<a class="back" href="#/start">← Spielstart</a><h1>Auswertung</h1>`;
+  else if (key === "auswertung") renderGameList(view);
+  else if (key === "saison") renderSeason(view);
+  else if (key.startsWith("auswertung/")) renderGame(view, key.slice("auswertung/".length));
   else renderStart(view);
 }
 

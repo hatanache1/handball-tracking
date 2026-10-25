@@ -1,5 +1,5 @@
 // Bump CACHE when any listed file changes, otherwise old files stay cached.
-const CACHE = "handball-v19";
+const CACHE = "handball-v25";
 const FILES = [
   "./",
   "index.html",
@@ -24,6 +24,13 @@ const FILES = [
   "js/eventlist.js",
   "js/views/sidebar.js",
   "js/views/live.js",
+  "js/charts/line.js",
+  "js/stats.js",
+  "js/views/game.js",
+  "js/charts/bars.js",
+  "js/charts/heatmap.js",
+  "js/views/compare.js",
+  "js/views/season.js",
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/logo.png",

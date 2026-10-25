@@ -14,6 +14,7 @@ import { mountSidebar } from './sidebar.js';
 import { describe, timeLabel, removeEvent } from '../eventlist.js';
 
 const TOAST_MS = 1500;
+const ALERT_MS = 800; // how long the clock glows red after a tap on a stopped clock
 const DRAG_STEP_PX = 24; // finger travel on the clock for one minute or one second
 
 export async function renderLive(root) {
@@ -210,6 +211,13 @@ export async function renderLive(root) {
   // Pitch and goal taps. A tap on the pitch while the detail panel is open closes it and starts the next shot.
   // A saved shot opened for its missing location is the exception: the tap sets the location.
   function step(fields) {
+    // A new shot needs a running clock, otherwise its time stamp would be wrong; completing or editing a shot is always allowed.
+    const startsShot = isComplete(flow) ? !(editMode && !placed(flow)) : !editMode && !shotFields(flow).location;
+    if (startsShot && !isRunning(clock)) {
+      clockEl.classList.add('alert');
+      setTimeout(() => clockEl.classList.remove('alert'), ALERT_MS);
+      return;
+    }
     if (isComplete(flow) && !(editMode && !placed(flow))) exitEdit();
     push(fields);
   }
@@ -379,6 +387,6 @@ export async function renderLive(root) {
     await save();
     if (msg.textContent) return;
     await clearDraft();
-    location.hash = '#/start';
+    location.hash = `#/auswertung/${game.id}`; // straight to the evaluation of the game just ended
   }
 }

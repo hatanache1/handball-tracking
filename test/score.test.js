@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { score } from '../js/score.js';
+import { score, scoreSeries } from '../js/score.js';
 import { newClock, clockSec, isRunning, toggle, adjust, switchHalf, firstHalfOver, tap } from '../js/clock.js';
 
 test('score counts conceded goals and own goals, ignoring everything else', () => {
@@ -78,4 +78,16 @@ test('switchHalf stops the clock at the half boundary', () => {
   assert.equal(c.half, 2);
   assert.equal(clockSec(c, 5000), 1800);
   assert.equal(switchHalf(c).half, 1);
+});
+
+test('scoreSeries makes step points per goal, ordered by game time', () => {
+  const events = [
+    { type: 'shot', result: 'tor', half: 2, gameTimeSec: 2400 },
+    { type: 'ownGoal', half: 1, gameTimeSec: 600 },
+    { type: 'shot', result: 'gehalten', half: 1, gameTimeSec: 700 },
+  ];
+  const s = scoreSeries(events);
+  assert.deepEqual(s.own, [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 1 }, { x: 40, y: 1 }]);
+  assert.deepEqual(s.against, [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 1 }, { x: 40, y: 1 }]);
+  assert.equal(s.lastX, 40);
 });

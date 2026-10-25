@@ -25,6 +25,9 @@ export async function chooseFolder() {
   return handle;
 }
 
+// True if a folder was chosen before, even when the browser asks for its permission again.
+export const hasFolder = async () => Boolean(await idbGet(FOLDER_KEY));
+
 // Returns the remembered folder if permission is still granted, else null.
 // Pass askPermission=true only from a user gesture; the browser refuses the prompt otherwise.
 export async function restoreFolder(askPermission = false) {
