@@ -1,7 +1,9 @@
-import { restoreFolder, hasFolder, listGames, loadGame } from '../storage.js';
+import { restoreFolder, hasFolder, listGames, loadGame, deleteGame } from '../storage.js';
+import { holdable } from '../hold.js';
+import { END_HOLD_MS } from './sidebar.js';
 import { loadSettings } from '../settings.js';
 import { score, scoreSeries } from '../score.js';
-import { collectShots, ratio, byHalf, special } from '../stats.js';
+import { collectShots, forGoalkeeper, ratio, byHalf, special } from '../stats.js';
 import { describe, timeLabel } from '../eventlist.js';
 import { lineChart } from '../charts/line.js';
 
@@ -52,13 +54,29 @@ export function renderGameList(root) {
     const games = result.games.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
     const rows = games.map((g) => {
       const { own, against } = score(g.events);
-      return `<a class="game-row" href="#/auswertung/${esc(g.id)}"><span>${esc(date(g.startedAt))}</span>
-        <b>${esc(g.opponent)}</b><span>${VENUE[g.venue]}</span><span class="game-score">${own}:${against}</span></a>`;
+      return `<div class="game-item"><a class="game-row" href="#/auswertung/${esc(g.id)}"><span>${esc(date(g.startedAt))}</span>
+        <b>${esc(g.opponent)}</b><span>${VENUE[g.venue]}</span><span class="game-score">${own}:${against}</span></a>
+        <button class="big end-button" data-id="${esc(g.id)}">Löschen · 1,5 s halten</button></div>`;
     });
     // Unreadable files are named so a missing game is never silently hidden.
     const skipped = result.skipped.length
       ? `<p class="error">Diese Dateien konnten nicht gelesen werden: ${result.skipped.map(esc).join(', ')}</p>` : '';
-    root.innerHTML = `${back}<h1>Auswertung</h1><a class="big-link" href="#/saison">Saison</a>${skipped}${rows.join('') || '<p>Keine Spiele gefunden.</p>'}`;
+    root.innerHTML = `${back}<h1>Auswertung</h1><a class="big-link" href="#/saison">Saison</a>${skipped}<p id="msg" class="error"></p>${rows.join('') || '<p>Keine Spiele gefunden.</p>'}`;
+    // Holding is the only safeguard (as for "Spiel beenden"); a short tap does nothing on purpose.
+    for (const button of root.querySelectorAll('[data-id]')) {
+      holdable(button, {
+        holdMs: END_HOLD_MS,
+        onShort() {},
+        async onLong() {
+          try {
+            await deleteGame(dir, button.dataset.id);
+            renderGameList(root);
+          } catch (err) {
+            root.querySelector('#msg').textContent = err.message;
+          }
+        },
+      });
+    }
   });
 }
 
@@ -79,19 +97,29 @@ export function renderGame(root, id) {
   });
 }
 
-function drawGame(root, game, names, kind) {
-  const shots = collectShots(game);
+function drawGame(root, game, names, kind, goalkeeperId = null) {
+  const allShots = collectShots(game);
+  const shots = goalkeeperId === null ? allShots : forGoalkeeper(allShots, goalkeeperId);
   const { own, against } = score(game.events);
   const halves = byHalf(shots, kind);
   const sp = special(shots, kind);
   const open = shots.filter((s) => !s.result).length;
 
   root.onclick = (e) => {
-    if (e.target.dataset.kind) drawGame(root, game, names, e.target.dataset.kind);
+    const button = e.target.closest('button');
+    if (!button) return;
+    if ('goalkeeper' in button.dataset) drawGame(root, game, names, kind, button.dataset.goalkeeper || null);
+    else if (button.dataset.kind) drawGame(root, game, names, button.dataset.kind, goalkeeperId);
   };
+
+  // Only keepers with shots in this game; with a single keeper the switch would add nothing.
+  const keeperIds = [...new Set(allShots.map((s) => s.goalkeeperId).filter(Boolean))];
+  const keeperRow = keeperIds.length < 2 ? '' : `<div class="row">${[{ id: '', name: 'Alle' }, ...keeperIds.map((id) => ({ id, name: names.get(id) ?? 'Unbekannter Torwart' }))].map((k) =>
+    `<button class="big" data-goalkeeper="${esc(k.id)}" aria-pressed="${(goalkeeperId ?? '') === k.id}">${esc(k.name)}</button>`).join('')}</div>`;
   root.innerHTML = `<div class="game-view"><a class="back" href="#/auswertung">← Alle Spiele</a>
     <h1>${esc(game.opponent)} · ${VENUE[game.venue]} <small>${esc(date(game.startedAt))}</small></h1>
     <p class="final-score">Stand ${own}:${against}</p>
+    ${keeperRow}
     <div class="row">
       <button class="big" data-kind="standard" aria-pressed="${kind === 'standard'}">Standardquote</button>
       <button class="big" data-kind="hard" aria-pressed="${kind === 'hard'}">Harte Quote</button>

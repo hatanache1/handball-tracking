@@ -1,5 +1,5 @@
 // Bump CACHE when any listed file changes, otherwise old files stay cached.
-const CACHE = "handball-v25";
+const CACHE = "handball-v26";
 const FILES = [
   "./",
   "index.html",

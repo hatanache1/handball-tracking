@@ -66,6 +66,16 @@ export async function loadGame(dir, id) {
   }
 }
 
+export async function deleteGame(dir, id) {
+  try {
+    await dir.removeEntry(`${id}.json`);
+  } catch (err) {
+    throw fail('Spiel konnte nicht gelöscht werden.', err);
+  }
+  // A running game is also deleted from the crash copy, otherwise the live view would write the file again.
+  if ((await loadDraft())?.id === id) await clearDraft();
+}
+
 // Returns { games, skipped }; broken files are reported by name instead of hiding the rest.
 export async function listGames(dir) {
   const games = [];
