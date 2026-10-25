@@ -33,7 +33,6 @@ export function mountPitch(el, { onStep }) {
   const svg = el.querySelector('svg');
   const [marker, previous] = svg.querySelectorAll('circle');
   const menu = el.querySelector('.radial-menu');
-  let shown = { p: null, asking: false, result: undefined }; // what the flow says, to restore after a long press without a pick
 
   // The screen CTM maps pixels to meters, whatever size the SVG is displayed at.
   // Taps next to the court (the pane is wider than the court) are clamped onto it.
@@ -73,11 +72,9 @@ export function mountPitch(el, { onStep }) {
       if (!inSevenMeterZone(location)) return onStep(fastBreak); // a 7 m cannot be thrown from here
       openMenu([['7m', { location: SEVEN_METER_LOCATION, situation: 'siebenmeter' }], ['Gegenstoß', fastBreak]], point, [150, 30]);
     },
-    // The finger is still down while the menu is open, so a pick is a release over a button.
+    // Releasing over a button picks it; releasing elsewhere leaves the menu open to be tapped (lifting the finger must not close it).
     onRelease(point) {
-      const button = document.elementFromPoint(point.x, point.y)?.closest('.radial');
-      if (button) button.click();
-      else api.setLocation(shown.p, shown.asking, shown.result);
+      document.elementFromPoint(point.x, point.y)?.closest('.radial')?.click();
     },
   });
 
@@ -91,7 +88,6 @@ export function mountPitch(el, { onStep }) {
       }
     },
     setLocation(p, asking, result) {
-      shown = { p, asking, result };
       menu.replaceChildren();
       marker.dataset.result = result ?? '';
       marker.setAttribute('visibility', p ? 'visible' : 'hidden');
